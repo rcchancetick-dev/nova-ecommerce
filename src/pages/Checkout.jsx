@@ -1,17 +1,58 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { CheckCircle2, CreditCard, Lock } from "lucide-react";
+import { CheckCircle2, CreditCard, Lock, AlertCircle } from "lucide-react";
 import { useCartStore } from "../store/cartStore.js";
+import { supabase } from "../lib/supabaseClient.js";
 import { Link } from "react-router-dom";
 
 export default function Checkout() {
   const { items, total, clearCart } = useCartStore();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [form, setForm] = useState({ name: "", email: "", address: "", city: "", postalCode: "" });
 
-  const handleSubmit = (e) => {
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => clearCart(), 1200);
+    setSubmitting(true);
+    setErrorMsg(null);
+
+    try {
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          customer_name: form.name,
+          customer_email: form.email,
+          shipping_address: form.address,
+          city: form.city,
+          postal_code: form.postalCode,
+          total: total(),
+          status: "pending"
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      const orderItems = items.map((item) => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.qty,
+        unit_price: item.price
+      }));
+
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+      if (itemsError) throw itemsError;
+
+      setSubmitted(true);
+      setTimeout(() => clearCart(), 1200);
+    } catch (err) {
+      setErrorMsg(err.message || "Une erreur est survenue lors de la commande.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -29,7 +70,7 @@ export default function Checkout() {
           <CheckCircle2 className="h-20 w-20 text-emerald-400" />
         </motion.div>
         <h1 className="mt-6 font-display text-3xl font-bold">Commande confirmée !</h1>
-        <p className="mt-2 text-white/60">Merci pour votre achat. Un email de confirmation arrive bientôt.</p>
+        <p className="mt-2 text-white/60">Merci pour votre achat. Elle est enregistrée dans notre base de données.</p>
         <Link to="/shop">
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -69,12 +110,12 @@ export default function Checkout() {
             className="space-y-5 rounded-3xl glass p-8"
           >
             <h2 className="font-display text-xl font-semibold">Informations de livraison</h2>
-            <input required placeholder="Nom complet" className="w-full rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
-            <input required type="email" placeholder="Email" className="w-full rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
-            <input required placeholder="Adresse" className="w-full rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
+            <input name="name" onChange={handleChange} required placeholder="Nom complet" className="w-full rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
+            <input name="email" onChange={handleChange} required type="email" placeholder="Email" className="w-full rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
+            <input name="address" onChange={handleChange} required placeholder="Adresse" className="w-full rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
             <div className="grid grid-cols-2 gap-4">
-              <input required placeholder="Ville" className="rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
-              <input required placeholder="Code postal" className="rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
+              <input name="city" onChange={handleChange} required placeholder="Ville" className="rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
+              <input name="postalCode" onChange={handleChange} required placeholder="Code postal" className="rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
             </div>
 
             <h2 className="pt-4 font-display text-xl font-semibold">Paiement</h2>
@@ -87,13 +128,20 @@ export default function Checkout() {
               <input required placeholder="CVC" className="rounded-xl bg-white/10 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-aurora-fuchsia" />
             </div>
 
+            {errorMsg && (
+              <div className="flex items-center gap-2 rounded-xl bg-red-500/10 p-3 text-sm text-red-300">
+                <AlertCircle className="h-4 w-4" /> {errorMsg}
+              </div>
+            )}
+
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-aurora-violet to-aurora-fuchsia py-4 font-semibold shadow-glow-lg"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-aurora-violet to-aurora-fuchsia py-4 font-semibold shadow-glow-lg disabled:opacity-60"
             >
-              <Lock className="h-4 w-4" /> Payer ${total().toFixed(0)}
+              <Lock className="h-4 w-4" /> {submitting ? "Traitement..." : `Payer $${total().toFixed(0)}`}
             </motion.button>
           </motion.form>
 

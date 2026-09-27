@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight, Truck, ShieldCheck, RefreshCw, Sparkles } from "lucide-react";
 import ProductCard from "../components/ProductCard.jsx";
-import { products } from "../data/products.js";
+import { useProducts } from "../hooks/useProducts.js";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -20,6 +20,8 @@ const perks = [
 ];
 
 export default function Home() {
+  const { products, loading } = useProducts();
+
   return (
     <motion.main
       initial={{ opacity: 0 }}
@@ -134,11 +136,21 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {products.slice(0, 4).map((product, i) => (
-            <ProductCard key={product.id} product={product} index={i} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="h-10 w-10 rounded-full border-2 border-white/20 border-t-aurora-fuchsia"
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {products.slice(0, 4).map((product, i) => (
+              <ProductCard key={product.id} product={product} index={i} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="relative mx-auto max-w-5xl px-6 py-24 text-center">

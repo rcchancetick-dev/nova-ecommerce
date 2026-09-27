@@ -1,13 +1,26 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Star, ArrowLeft, ShieldCheck, Truck } from "lucide-react";
-import { products } from "../data/products.js";
 import { useCartStore } from "../store/cartStore.js";
+import { useProducts } from "../hooks/useProducts.js";
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const { products, loading } = useProducts();
   const product = products.find((p) => p.id === Number(id));
   const addItem = useCartStore((s) => s.addItem);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-10 w-10 rounded-full border-2 border-white/20 border-t-aurora-fuchsia"
+        />
+      </div>
+    );
+  }
 
   if (!product) {
     return (

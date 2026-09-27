@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import ProductCard from "../components/ProductCard.jsx";
-import { products, categories } from "../data/products.js";
+import { categories } from "../data/products.js";
+import { useProducts } from "../hooks/useProducts.js";
 
 export default function Shop() {
   const [active, setActive] = useState("Tous");
+  const { products, loading, error } = useProducts();
 
   const filtered = useMemo(
     () => (active === "Tous" ? products : products.filter((p) => p.category === active)),
-    [active]
+    [active, products]
   );
 
   return (
@@ -53,14 +55,29 @@ export default function Shop() {
         ))}
       </div>
 
-      <motion.div
-        layout
-        className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        {filtered.map((product, i) => (
-          <ProductCard key={product.id} product={product} index={i} />
-        ))}
-      </motion.div>
+      {loading && (
+        <div className="flex justify-center py-20">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="h-10 w-10 rounded-full border-2 border-white/20 border-t-aurora-fuchsia"
+          />
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-2xl glass p-6 text-center text-red-300">
+          Erreur de chargement des produits : {error}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <motion.div layout className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {filtered.map((product, i) => (
+            <ProductCard key={product.id} product={product} index={i} />
+          ))}
+        </motion.div>
+      )}
     </motion.main>
   );
 }
